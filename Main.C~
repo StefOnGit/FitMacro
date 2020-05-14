@@ -1,0 +1,336 @@
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+#include <vector>
+#include <algorithm>
+#include <string>
+
+
+
+#include <TFile.h>
+#include <TCanvas.h>
+#include <TGraph.h>
+#include <TTree.h> 
+#include <TF1.h>
+#include <TH1.h>
+#include <TLegend.h>
+#include <TPaveText.h>
+
+
+
+
+using namespace std;
+
+
+
+/////////////////////////////          FITTING   FUNCTIONS     ////////////////////////////////////////////
+
+Double_t Gauss(Double_t *x, Double_t *par) {
+  return (par[2]/(par[1]*sqrt(2*TMath::Pi()))*(exp(-(pow(x[0]-par[0],2))*(0.5/(pow(par[1],2))))));
+}
+
+Double_t GaussSum(Double_t *x, Double_t *par) {
+  return Gauss(x,par) + Gauss(x,&par[3])+ Gauss(x,&par[6]);// + Gauss(x,&par[9]);//+ Gauss(x,&par[12]);
+}
+
+Double_t background(Double_t *x, Double_t *par) {
+   return par[0] + par[1]*x[0] + par[2]*x[0]*x[0];
+}
+
+
+Double_t GaussSum_Const(Double_t *x, Double_t *par){
+  return Gauss(x,par) + Gauss(x,&par[3])+ Gauss(x,&par[6]) + Gauss(x,&par[9]) + background(x,&par[12]);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+void reco(string run, string adcn){
+
+  string wn    = run + adcn + "-Monitoring"+"RawEnergy.root";
+  TFile *fin   = new TFile(Form("%s", wn.c_str()), "read");       //open root file
+  string oname = "Spect_" + adcn +".root";
+  TFile *fout  = new TFile(Form("%s", oname.c_str()), "recreate");    //create output file
+  string cname = "cDumpEnergy_"+adcn;
+  TCanvas *c   =(TCanvas*)  fin->Get(cname.c_str()); //read data
+  TH1F *data = (TH1F*)c->GetListOfPrimitives()->FindObject("hbad"); //get GRAPH from Canvas
+  cout<<"ho aperto tutto\n";
+  /// TITLE OF THE DATA
+  
+  data->SetTitle("TEST NAME");
+  cout<<"ho messo il nome \n";
+  
+  // int nsamp = data->GetNbinsX(); cout<<"Nsample = "<<nsamp<<endl;
+  // double samp[nsamp];
+  // double WF[nsamp];
+  // TGraph *g;
+  // Double_t *wf;
+  //  wf = data->GetY(); //Getting Y vals from Graph
+  
+  //  for(int i=0; i<nsamp; i++) {
+  //   samp[i] = i;
+  //   WF[i] = data->GetBinContent(i);
+  //  }
+  //  cout<<"dati scritti\n"; 
+     
+  //                                                                              //
+  //_______________________________               ________________________________//
+  //_______________________________    F  I  T    ________________________________//
+  //                                                                              //
+  //    Initialize TFits, Setting ranges and parameters
+ 
+  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  
+  int n_par1 = 9;                                   //n parameter
+  float rf_min1 = 0.73, rf_max1 = 3.33;             //fit range
+  
+  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  
+  int n_par2 = 3;                                   //n parameter
+  float rf_min2 = 0.73, rf_max2 = 1.33;             //fit range
+  
+  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  
+  int n_par3 = 3;                                   //n parameter
+  float rf_min3 = 0.45, rf_max3 = 0.65;             //fit range
+  
+  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  
+  TF1 *fitFcn = new TF1("fitFcn",GaussSum,rf_min1,rf_max1,n_par1);
+  fitFcn->SetNpx(500);
+  fitFcn->SetLineWidth(2);
+  fitFcn->SetLineColor(kRed);
+ 
+  TF1 *fitSG = new TF1("fitSG",Gauss,rf_min2,rf_max2,n_par2);
+  fitSG->SetNpx(500);
+  fitSG->SetLineWidth(2);
+  fitSG->SetLineColor(kRed);
+
+  TF1 *fitSG1 = new TF1("fitSG1",Gauss,rf_min3,rf_max3,n_par3);
+  fitSG1->SetNpx(500);
+  fitSG1->SetLineWidth(2);
+  fitSG1->SetLineColor(kRed);
+
+  //-------------------------------------------------------------+
+  //                                                             |
+  //     +-----------------------------------------------+       |
+  //     |     SETTING INITIAL PARAMETERS FOR FIT        |       |
+  //     +-----------------------------------------------+       |
+  //                                                             |
+  //-------------------------------------------------------------+
+  
+  Double_t* init_params;
+  init_params= new Double_t[15];
+
+  //-------------------------------------------------------------+
+  init_params[0]  = 30;   //µ1
+  init_params[1]  = 5;  //s1              NOISE PEAK
+  init_params[2]  = 1e4; //norm1
+  //-------------------------------------------------------------+
+  init_params[3]  = 60;     //µ2
+  init_params[4]  = 10;  //s2             FIRST PE PEAK
+  init_params[5]  = 1e4; //norm2
+  //-------------------------------------------------------------+
+  init_params[6]  = 120;     //µ3
+  init_params[7]  = 15;   //s3             SECOND PE PEAK
+  init_params[8]  = 1e3;   //norm3 
+  //-------------------------------------------------------------+
+  init_params[9]  = 180;     //µ4
+  init_params[10] = 18;  //s4             THIRD PE PEAK
+  init_params[11] = 5e2;   //norm4
+  //-------------------------------------------------------------+
+  init_params[12] = 4;     //µ5
+  init_params[13] = 0.3;   //s5             BACKGROUND STUFF
+  init_params[14] = 5e4;   //norm5
+  //-------------------------------------------------------------+
+  
+  fitFcn->SetParameters(&init_params[3]); //multiple gauss (3 pe)
+  fitSG->SetParameters(&init_params[3]);  //1 gauss (first pe)
+  fitSG1->SetParameters(init_params);     //1 gauss (noise peak)
+  
+  //--------------------------------------------------------------+
+
+  //
+  //           FITTING AND PRINTIG RESULTS
+  //
+  
+  //   fitting multiple gauss
+  
+  cout<<"\n----------------------  Multiple Gaussian Fit ----------------------------\n";
+  data->Fit("fitFcn","0","",rf_min1,rf_max1);
+  TF1 *fitres1 = data->GetFunction("fitFcn");
+  double Chi1 = fitres1->GetChisquare();
+  double NDF1 = fitres1->GetNDF();
+  cout<<"CHI QUADRO = "<<Chi1/NDF1<<endl;
+  
+  //    fitting single gauss
+  
+  cout<<"\n-----------------------  Single Gaussian Fit ----------------------------\n";
+  data->Fit("fitSG","0","",rf_min2,rf_max2);
+  TF1 *fitres2 = data->GetFunction("fitSG");
+  double Chi2 = fitres2->GetChisquare();
+  double NDF2 = fitres2->GetNDF();
+  cout<<"CHI QUADRO = "<<Chi2/NDF2<<endl;
+
+  //    fitting single gauss2
+  
+  cout<<"\n----------------------  Single Gaussian Fit -------------------------------\n";
+  data->Fit("fitSG1","0","",rf_min3,rf_max3);
+  TF1 *fitres3 = data->GetFunction("fitSG1");
+  double Chi3 = fitres3->GetChisquare();
+  double NDF3 = fitres3->GetNDF();
+  cout<<"CHI QUADRO = "<<Chi3/NDF3<<endl;
+  
+
+  //______________________________________________________________________________
+  
+  //                     PLOTTING RESULTS
+
+  TCanvas *c1 = new TCanvas("c1","Multiple Pads",200,10,700,900);
+  TPad *pad1  = new TPad("pad1","Multiple Gaussian Fit", 0.001, 0.501, 0.999, 0.999);
+  TPad *pad2  = new TPad("pad2","Single Gaussian Fit"  , 0.001, 0.001, 0.499, 0.499);
+  TPad *pad3  = new TPad("pad3","Single Gaussian Fit"  , 0.501, 0.001, 0.999, 0.499);
+  pad1->Draw();
+  pad2->Draw();
+  pad3->Draw();
+  
+
+  //--------------------------------  PAD 1 ---------------------------------------
+  
+  pad1->cd();
+  data->Draw();
+  
+  TF1 *Gauss10 = new TF1("Gauss10",Gauss,0,4,3);
+  Gauss10->SetLineColor(kBlue);
+  Gauss10->SetNpx(500);
+  TF1 *Gauss11 = new TF1("Gauss11",Gauss,0,4,3);
+  Gauss11->SetLineColor(kBlue+1);
+  Gauss11->SetNpx(500);
+  TF1 *Gauss12 = new TF1("Gauss12",Gauss,0,4,3);
+  Gauss12->SetLineColor(kBlue+2);
+  Gauss12->SetNpx(500);
+  //TF1 *Gauss14 = new TF1("Gauss4",Gauss,0,4,3);
+  //Gauss13->SetLineColor(kBlue+3);
+  //Gauss13->SetNpx(500);
+
+  //TF1 *bkg = new TF1("bkg",Gauss,0,4,3);
+  //bkg->SetLineColor(kGreen);
+  //bkg->SetNpx(500);
+  
+  Double_t par1[n_par1];
+  fitFcn->GetParameters(par1);
+  
+  Gauss10->SetParameters(par1);
+  Gauss11->SetParameters(&par1[3]);
+  Gauss12->SetParameters(&par1[6]);
+  //Gauss4->SetParameters(&par[9]);
+  //bkg->SetParameters(&par[12]);
+  //bkg->Draw("same");
+  
+  Gauss10->Draw("same");
+  Gauss11->Draw("same");
+  Gauss12->Draw("same");
+  //  Gauss4->Draw("same");
+  fitFcn->Draw("same");
+
+  ///LEGEND
+  TLegend *legend=new TLegend(0.75,0.75,0.99,0.99);
+  legend->SetTextFont(32);
+  legend->SetTextSize(0.04);
+  legend->AddEntry(data,"Data","l");
+  legend->AddEntry(fitFcn,"Fit: Gauss sum ","l");
+  legend->AddEntry(Gauss10,"Single Gauss","l");
+  legend->AddEntry((TObject*)0,Form("sigma_1 = %.2e",par1[1]), "");
+  legend->AddEntry((TObject*)0,Form("sigma_2 = %.2e",par1[4]), "");
+  legend->AddEntry((TObject*)0,Form("sigma_3 = %.2e",par1[7]), "");
+  legend->Draw();
+ 
+  
+  //----------------------------------  PAD 2 ---------------------------------------
+  
+  pad2->cd();
+  data->Draw();
+
+  
+  TF1 *Gauss20 = new TF1("Gauss20",Gauss,0,4,3);
+  Gauss20->SetLineColor(kBlue);
+  Gauss20->SetNpx(500);
+
+  Double_t par2[n_par2];
+  fitSG->GetParameters(par2);
+  
+  Gauss20->SetParameters(par2);
+  Gauss20->Draw("same");
+  
+  fitSG->Draw("same");
+
+  ///LEGEND
+  TLegend *legend1=new TLegend(0.75,0.75,0.99,0.99);
+  legend1->SetTextFont(32);
+  legend1->SetTextSize(0.04);
+  legend1->AddEntry(data,"Data","l");
+  legend1->AddEntry(fitSG,"Fit: Gauss ","l");
+  legend1->AddEntry(Gauss20,"Full Gauss","l");
+  legend1->AddEntry((TObject*)0,Form("mean = %.2e",par1[0]), "");
+  legend1->AddEntry((TObject*)0,Form("sigma = %.2e",par1[1]), "");
+  legend1->Draw();
+ 
+  //---------------------------------  PAD 3 ---------------------------------------
+  
+  pad3->cd();
+  data->Draw();
+  TF1 *Gauss30 = new TF1("Gauss30",Gauss,0,3,3);
+  Gauss30->SetLineColor(kBlue);
+  Gauss30->SetNpx(500);
+
+  Double_t par3[n_par3];
+  fitSG1->GetParameters(par3);
+  
+  Gauss30->SetParameters(par3);
+  
+  Gauss30->Draw("same");
+  fitSG1->Draw("same");
+
+  ///LEGEND
+  TLegend *legend2=new TLegend(0.75,0.75,0.99,0.99);
+  legend2->SetTextFont(32);
+  legend2->SetTextSize(0.04);
+  legend2->AddEntry(data,"Data","l");
+  legend2->AddEntry(fitSG1,"Fit: Gauss ","l");
+  legend2->AddEntry(Gauss30,"Full Gauss","l");
+  legend2->AddEntry((TObject*)0,Form("mean = %.2e",par2[0]), "");
+  legend2->AddEntry((TObject*)0,Form("sigma = %.2e",par2[1]), "");
+  legend2->Draw();
+  
+  //-------------------------------------------------------------------------------
+  
+  c1->Write();
+  c1->Close();
+
+  //_______________________________________________________________________________
+ 
+
+  cout<<"chiudo\n";
+  data->Write();
+  fout->Close();
+  
+}
+
+
+int main(int argc, char *argv[]) {
+ 
+  if (argc != 3) {
+    cout << "Usage: ./proc adc_n" << endl;
+    exit(1); 
+  }
+
+  string run   = argv[1];
+  string adcn  = argv[2];     // wave number
+  
+  reco(run, adcn);
+  cout<<"uscito"<<endl;
+  return 0; 
+}

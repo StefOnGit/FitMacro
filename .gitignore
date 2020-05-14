@@ -1,0 +1,5 @@
+*.root
+Main.C
+*.pdf
+*.list
+/old_cfg
