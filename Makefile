@@ -1,0 +1,12 @@
+all:
+	g++ Main.C -o process `root-config --cflags --libs` -I.
+	g++ src/functions.c src/my_fit.c src/main.cpp -o new_process `root-config --cflags --libs` -I.
+new:
+	g++  src/functions.c src/my_fit.c src/main.cpp -o new_process `root-config --cflags --libs` -I.
+test:
+	g++  src/filereader.C -o marco_process `root-config --cflags --libs` -I.
+clean:
+	rm -f process
+	rm -f new_process
+	rm -f functions.o my_fit.o
+

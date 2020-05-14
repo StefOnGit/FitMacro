@@ -1,0 +1,96 @@
+///////////////////////////////////////////////////////////////
+// This is a reader for tow columns data stored in .txt file //
+// it gets the file from a folder and covert it in a .root   //
+// file with graph and other stuff (at least i try to make   //
+// such a file!)                                             //
+///////////////////////////////////////////////////////////////
+
+//-------IMPORT THE PACKAGES------------------//
+
+#include <iostream>
+#include <string>
+#include <vector>
+#include <sstream>
+#include <math.h> 
+#include <cmath>  
+#include <stdio.h>
+#include <stdlib.h>
+#include <fstream>
+//#include "Event.h"
+#include <TFile.h>
+#include <TCanvas.h>
+
+
+//------BEGINNIG OF FILE-------------//
+
+using namespace std;
+
+void Funzione(){
+ 
+}
+
+int main(){
+
+  Funzione();
+   string line;
+  vector<double> enwf, ampwf;
+  int nlines=0;
+  ifstream myfile;
+  //TCanvas *grafico;
+
+  TFile* odioroot = new TFile("iotiodio.root", "RECREATE");
+
+  if(odioroot->IsOpen())cout<<"File root aperto"<<endl;
+
+  // myfile.open(filename);
+  
+  myfile.open("/home/marco/Scrivania/prove/Dati_Ale/data/sp_1.txt"); //open the file
+  
+  //check that my file has opened correctly
+  if(!getline(myfile, line)) cout << "FILE HAS NOT OPENED!" << endl;
+
+  //cycle trough the file to get the data
+  //myfile.ignore(1); //ignore the first line
+
+  while(getline(myfile, line)){
+    //I read the values separetad with a space \t
+    string en, amp;
+    en = line.substr(0, line.find('\t'));
+    amp = line.substr(line.find('\t')+1, string::npos);
+
+    //cout<<"Energy = "<<en<<endl;
+    //cout<<"Intensity = "<<amp<<endl;
+
+    //now I need to convert this string element into a double
+    enwf.push_back(stod(en));
+    ampwf.push_back(stod(amp));
+
+    nlines++; //this keep tracks of the number of lines in the file
+  }
+
+  myfile.close();
+  cout<<"Ho letto "<<nlines<<" righe"<<"\n";
+
+  //I create an array that contains the data  
+  float WF[nlines][2];
+  
+
+  //Fill of the array with the x at position WF[i][0] (first column)
+  //and y at position WF[i][1] (second column)
+  for(int i=0; i<nlines; i++){
+    WF[i][0] = enwf.at(i);
+    WF[i][1] = ampwf.at(i);
+    cout<<"Energy = "<<WF[i][0]<<endl;
+    cout<<"Intensity = "<<WF[i][1]<<endl;
+  }
+     
+  TCanvas *grafico = new TCanvas("WaveForm");
+  //WF->Draw();
+  //grafico->Write();
+  //grafico->Close();
+
+  odioroot->Close();
+
+ 
+  return 0;
+}
